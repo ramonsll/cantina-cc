@@ -1,4 +1,4 @@
-# 🧃 Cantina CC - Sistema de Cantina do curso de Ciência da Computação
+# ₊⊹ Cantina CC - Sistema de Cantina do curso de Ciência da Computação ₊⊹
 
 Sistema desenvolvido para a matéria de **Programação Orientada a Objetos**.
 
@@ -56,7 +56,10 @@ cantina-cc/
 ## 👨‍💻 Desenvolvido por
 
 Ramon de Sousa Lima
+
 Gabryelle Ingride Pinto França
+
 Maria Luiza Freitas de Sousa
+
 ---
 
