@@ -1,30 +1,45 @@
-package model;
-
 public class ItemEstoque {
+    private String nome;
+    private double preco;
+    private int quantidadeTotal;
+    private int quantidadeReservada;
 
-    private Produto produto;
-    private int quantidade;
-
-    public ItemEstoque(Produto produto, int quantidade) {
-        this.produto = produto;
-        this.quantidade = quantidade;
-
+    public ItemEstoque(String nome, double preco, int quantidadeTotal) {
+        this.nome = nome;
+        this.preco = preco;
+        this.quantidadeTotal = quantidadeTotal;
+        this.quantidadeReservada = 0;
     }
 
-    public Produto getProduto() {
-        return produto;
+    public String getNome() {
+        return nome;
     }
 
-    public void setProduto(produto) {
-        this.produto = produto;
+    public double getPreco() {
+        return preco;
     }
 
-    public int getQuantidade() {
-        return quantidade;
+    // Quantidade realmente disponível para reserva/venda
+    public int getQuantidadeDisponivel() {
+        return quantidadeTotal - quantidadeReservada;
     }
 
-    public void setQuantidade(quantidade) {
-        this.quantidade = quantidade;
+    public void adicionarQuantidade(int qnt) {
+        quantidadeTotal += qnt;
     }
 
+    public void removerQuantidade(int qnt) {
+        if (qnt <= getQuantidadeDisponivel()) {
+            quantidadeTotal -= qnt;
+        }
+    }
+
+    public void reservar(int qnt) {
+        quantidadeReservada += qnt;
+    }
+
+    public void cancelarReserva(int qnt) {
+        quantidadeReservada -= qnt;
+        if (quantidadeReservada < 0) quantidadeReservada = 0;
+    }
 }
