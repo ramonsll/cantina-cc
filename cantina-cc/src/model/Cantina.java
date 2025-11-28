@@ -1,6 +1,8 @@
 package model;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Cantina {
@@ -23,15 +25,22 @@ public class Cantina {
     public Map<Integer, Produto> produtos = new HashMap<>();
     public Map<Integer, Venda> vendas = new HashMap<>();
 
-    // Estoque centralizado (utiliza a sua classe Estoque existente)
+    // Estoque centralizado
     public Estoque estoque = new Estoque();
+
+    // Reservas
+    private List<Reserva> reservas = new ArrayList<>();
+    private int limiteReservasPorCliente = 3;
 
     // -------------------------
     // PRODUTOS (CRUD mínimo)
     // -------------------------
-    public void addProduto(Produto produto) {
+    public void addProduto(Produto produto, int quantidadeInicial) {
         if (produto == null) throw new IllegalArgumentException("Produto nulo");
         produtos.put(produto.getId(), produto);
+        if (quantidadeInicial > 0) {
+            estoque.addProduto(produto, quantidadeInicial);
+        }
     }
 
     public Produto localizarProduto(int codigo) {
@@ -41,33 +50,20 @@ public class Cantina {
     // -------------------------
     // ESTOQUE (incremento/decremento)
     // -------------------------
-    /**
-     * Repor estoque: incrementa a quantidade do produto.
-     * Usa a classe Estoque (que internamente faz get/put).
-     */
     public void reporEstoque(int codigoProduto, int quantidade) {
         Produto p = localizarProduto(codigoProduto);
         if (p == null) throw new RuntimeException("Produto não encontrado: " + codigoProduto);
         if (quantidade <= 0) throw new IllegalArgumentException("Quantidade deve ser positiva");
-        estoque.addProduto(p, quantidade); // responsável por somar à quantidade atual
+        estoque.addProduto(p, quantidade);
     }
 
-    /**
-     * Retorna a quantidade atual do produto no estoque.
-     */
     public int consultarQuantidadeEstoque(int codigoProduto) {
-        Produto p = localizarProduto(codigoProduto);
-        if (p == null) return 0;
-        return estoque.getQuantidade(p);
+        return estoque.getQuantidadeDisponivel(codigoProduto);
     }
 
     // -------------------------
     // VENDAS
     // -------------------------
-    /**
-     * Cria uma venda e registra no mapa.
-     * Você controla o id externamente (não gera aqui).
-     */
     public Venda criarVenda(int id, FormaPagamento forma) {
         if (vendas.containsKey(id)) throw new RuntimeException("Venda já existe com id: " + id);
         Venda v = new Venda(id, forma);
@@ -79,10 +75,6 @@ public class Cantina {
         return vendas.get(id);
     }
 
-    /**
-     * Adiciona um item à venda VALIDANDO estoque antes.
-     * Se houver estoque suficiente, decrementa automaticamente.
-     */
     public void adicionarItemAVenda(int idVenda, int codigoProduto, int quantidade) {
         if (quantidade <= 0) throw new IllegalArgumentException("Quantidade deve ser positiva");
 
@@ -92,96 +84,89 @@ public class Cantina {
         Produto produto = localizarProduto(codigoProduto);
         if (produto == null) throw new RuntimeException("Produto não encontrado: " + codigoProduto);
 
-        int disponivel = estoque.getQuantidade(produto);
+        int disponivel = estoque.getQuantidadeDisponivel(codigoProduto);
         if (disponivel < quantidade) {
             throw new RuntimeException("Estoque insuficiente para produto " + codigoProduto +
-                                       ". Disponível: " + disponivel + ", pedido: " + quantidade);
+                    ". Disponível: " + disponivel + ", pedido: " + quantidade);
         }
 
-        // cria o ItemVenda (usa seu construtor existente) e adiciona na venda
         ItemVenda item = new ItemVenda(produto, quantidade);
         venda.adicionarItem(item);
 
-        // decrementa o estoque
+        // decrementa do estoque disponível (venda efetiva)
         estoque.removerProduto(produto, quantidade);
     }
 
-    // parte das R3ESERVAS 
+    // -------------------------
+    // RESERVAS
+    // -------------------------
+    public boolean reservarProduto(Cliente cliente, int idProduto, int quantidade) {
+        if (cliente == null) throw new IllegalArgumentException("Cliente nulo");
 
-    private List<Reserva> reservas = new ArrayList<>();
-    private int limiteReservasPorCliente = 3; 
+        ItemEstoque item = estoque.getItem(idProduto);
+        if (item == null) return false;
 
-    // ---------------------------------------------------
-// MÉTODO PRINCIPAL DE NEGÓCIO: RESERVAR PRODUTOS
-// ---------------------------------------------------
-public boolean reservarProduto(Cliente cliente, int idProduto, int quantidade) {
+        if (quantidade <= 0 || quantidade > item.getQuantidadeDisponivel()) {
+            return false;
+        }
 
-    ItemEstoque item = estoque.getItem(idProduto);
-    if (item == null) return false;
+        long qtdReservasAtivas = reservas.stream()
+                .filter(r -> r.getCliente().getId() == cliente.getId() && r.estaAtiva())
+                .count();
 
-    if (quantidade <= 0 || quantidade > item.getQuantidade()) {
-        return false;
+        if (qtdReservasAtivas >= limiteReservasPorCliente) {
+            return false;
+        }
+
+        // bloqueia no estoque (reserva)
+        boolean reservado = estoque.reservarQuantidade(idProduto, quantidade);
+        if (!reservado) return false;
+
+        // cria reserva e adiciona à lista
+        Reserva reserva = new Reserva(cliente, item, quantidade);
+        reservas.add(reserva);
+
+        return true;
     }
-
-    // Limite de reservas por cliente
-    long qtdReservasAtivas = reservas.stream()
-        .filter(r -> r.getCliente().getId() == cliente.getId() && r.estaAtiva())
-        .count();
-
-    if (qtdReservasAtivas >= limiteReservasPorCliente) {
-        return false;
-    }
-
-    // Cria a reserva
-    Reserva reserva = new Reserva(cliente, item, quantidade);
-    reservas.add(reserva);
-
-    // Diminui do estoque como "bloqueado"
-    item.setQuantidade(item.getQuantidade() - quantidade);
-
-    return true;
-}
 
     public boolean cancelarReserva(int idReserva) {
-    for (Reserva r : reservas) {
-        if (r.getId() == idReserva && r.estaAtiva()) {
-
-            r.cancelar();
-
-            // devolve ao estoque
-            ItemEstoque item = r.getItem();
-            item.setQuantidade(item.getQuantidade() + r.getQuantidade());
-
-            return true;
+        for (Reserva r : reservas) {
+            if (r.getId() == idReserva && r.estaAtiva()) {
+                r.cancelar();
+                // libera estoque reservado
+                estoque.liberarReserva(r.getItem().getProduto().getId(), r.getQuantidade());
+                return true;
+            }
         }
+        return false;
     }
-    return false;
-}
 
     public boolean confirmarRetirada(int idReserva) {
-    for (Reserva r : reservas) {
-        if (r.getId() == idReserva && r.estaAtiva()) {
-
-            r.confirmar();
-            // nada é devolvido ao estoque → o cliente já pegou
-
-            return true;
+        for (Reserva r : reservas) {
+            if (r.getId() == idReserva && r.estaAtiva()) {
+                r.confirmar();
+                // consome a reserva: diminui reservado e o total em estoque
+                estoque.consumirReserva(r.getItem().getProduto().getId(), r.getQuantidade());
+                return true;
+            }
         }
+        return false;
     }
-    return false;
-}
 
     public List<Reserva> listarReservasCliente(int idCliente) {
-    return reservas.stream()
-        .filter(r -> r.getCliente().getId() == idCliente)
-        .toList();
-}
+        List<Reserva> out = new ArrayList<>();
+        for (Reserva r : reservas) {
+            if (r.getCliente().getId() == idCliente) out.add(r);
+        }
+        return out;
+    }
 
     public long reservasAtivasCliente(int idCliente) {
-    return reservas.stream()
-        .filter(r -> r.getCliente().getId() == idCliente && r.estaAtiva())
-        .count();
-}
+        return reservas.stream()
+                .filter(r -> r.getCliente().getId() == idCliente && r.estaAtiva())
+                .count();
+    }
+
     // -------------------------
     // CLIENTES / FORNECEDORES (básico)
     // -------------------------
@@ -212,4 +197,3 @@ public boolean reservarProduto(Cliente cliente, int idProduto, int quantidade) {
         return fornecedores.get(id);
     }
 }
-
