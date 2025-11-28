@@ -106,6 +106,82 @@ public class Cantina {
         estoque.removerProduto(produto, quantidade);
     }
 
+    // parte das R3ESERVAS 
+
+    private List<Reserva> reservas = new ArrayList<>();
+    private int limiteReservasPorCliente = 3; 
+
+    // ---------------------------------------------------
+// MÉTODO PRINCIPAL DE NEGÓCIO: RESERVAR PRODUTOS
+// ---------------------------------------------------
+public boolean reservarProduto(Cliente cliente, int idProduto, int quantidade) {
+
+    ItemEstoque item = estoque.getItem(idProduto);
+    if (item == null) return false;
+
+    if (quantidade <= 0 || quantidade > item.getQuantidade()) {
+        return false;
+    }
+
+    // Limite de reservas por cliente
+    long qtdReservasAtivas = reservas.stream()
+        .filter(r -> r.getCliente().getId() == cliente.getId() && r.estaAtiva())
+        .count();
+
+    if (qtdReservasAtivas >= limiteReservasPorCliente) {
+        return false;
+    }
+
+    // Cria a reserva
+    Reserva reserva = new Reserva(cliente, item, quantidade);
+    reservas.add(reserva);
+
+    // Diminui do estoque como "bloqueado"
+    item.setQuantidade(item.getQuantidade() - quantidade);
+
+    return true;
+}
+
+    public boolean cancelarReserva(int idReserva) {
+    for (Reserva r : reservas) {
+        if (r.getId() == idReserva && r.estaAtiva()) {
+
+            r.cancelar();
+
+            // devolve ao estoque
+            ItemEstoque item = r.getItem();
+            item.setQuantidade(item.getQuantidade() + r.getQuantidade());
+
+            return true;
+        }
+    }
+    return false;
+}
+
+    public boolean confirmarRetirada(int idReserva) {
+    for (Reserva r : reservas) {
+        if (r.getId() == idReserva && r.estaAtiva()) {
+
+            r.confirmar();
+            // nada é devolvido ao estoque → o cliente já pegou
+
+            return true;
+        }
+    }
+    return false;
+}
+
+    public List<Reserva> listarReservasCliente(int idCliente) {
+    return reservas.stream()
+        .filter(r -> r.getCliente().getId() == idCliente)
+        .toList();
+}
+
+    public long reservasAtivasCliente(int idCliente) {
+    return reservas.stream()
+        .filter(r -> r.getCliente().getId() == idCliente && r.estaAtiva())
+        .count();
+}
     // -------------------------
     // CLIENTES / FORNECEDORES (básico)
     // -------------------------
@@ -136,3 +212,4 @@ public class Cantina {
         return fornecedores.get(id);
     }
 }
+
