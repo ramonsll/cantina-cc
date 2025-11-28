@@ -1,3 +1,5 @@
+package model;
+
 import java.time.LocalDateTime;
 
 public class Reserva {
@@ -11,6 +13,10 @@ public class Reserva {
     private StatusReserva status;
 
     public Reserva(Cliente cliente, ItemEstoque item, int quantidade) {
+        if (cliente == null) throw new IllegalArgumentException("Cliente nulo");
+        if (item == null) throw new IllegalArgumentException("Item nulo");
+        if (quantidade <= 0) throw new IllegalArgumentException("Quantidade deve ser maior que zero");
+
         this.id = contador++;
         this.cliente = cliente;
         this.item = item;
@@ -23,8 +29,8 @@ public class Reserva {
     public Cliente getCliente() { return cliente; }
     public ItemEstoque getItem() { return item; }
     public int getQuantidade() { return quantidade; }
-    public StatusReserva getStatus() { return status; }
     public LocalDateTime getDataCriacao() { return dataCriacao; }
+    public StatusReserva getStatus() { return status; }
 
     public boolean estaAtiva() {
         return status == StatusReserva.ATIVA;
