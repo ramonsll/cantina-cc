@@ -1,7 +1,7 @@
 import java.time.LocalDateTime;
 
 public class Reserva {
-    private static int contador = 1; // gera IDs automáticos
+    private static int contador = 1;
 
     private int id;
     private Cliente cliente;
@@ -19,39 +19,28 @@ public class Reserva {
         this.status = StatusReserva.ATIVA;
     }
 
-    public int getId() {
-        return id;
-    }
-
-    public Cliente getCliente() {
-        return cliente;
-    }
-
-    public ItemEstoque getItem() {
-        return item;
-    }
-
-    public int getQuantidade() {
-        return quantidade;
-    }
-
-    public StatusReserva getStatus() {
-        return status;
-    }
+    public int getId() { return id; }
+    public Cliente getCliente() { return cliente; }
+    public ItemEstoque getItem() { return item; }
+    public int getQuantidade() { return quantidade; }
+    public StatusReserva getStatus() { return status; }
+    public LocalDateTime getDataCriacao() { return dataCriacao; }
 
     public boolean estaAtiva() {
         return status == StatusReserva.ATIVA;
     }
 
     public void cancelar() {
-        if (estaAtiva()) {
-            status = StatusReserva.CANCELADA;
-        }
+        if (estaAtiva()) status = StatusReserva.CANCELADA;
     }
 
     public void confirmar() {
-        if (estaAtiva()) {
-            status = StatusReserva.CONFIRMADA;
-        }
+        if (estaAtiva()) status = StatusReserva.CONFIRMADA;
     }
+}
+
+public enum StatusReserva {
+    ATIVA,
+    CANCELADA,
+    CONFIRMADA
 }
